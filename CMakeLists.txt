@@ -80,6 +80,53 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64)$")
         message(STATUS "FHT: AVX support detected, recommend adding -mavx to compile flags")
     endif()
 
+    # Optional re-optimization at build time (x86)
+    if(FHT_OPTIMIZE_FOR_HOST)
+        find_package(Python3 REQUIRED COMPONENTS Interpreter)
+
+        # Fetch Google Benchmark via CPM (required for optimization benchmarks)
+        include(cmake/CPM.cmake)
+        CPMAddPackage(
+            NAME benchmark
+            GITHUB_REPOSITORY google/benchmark
+            GIT_TAG v1.8.3
+            OPTIONS
+                "BENCHMARK_ENABLE_TESTING OFF"
+                "BENCHMARK_ENABLE_INSTALL OFF"
+                "BENCHMARK_ENABLE_GTEST_TESTS OFF"
+        )
+
+        set(FHT_X86_OPT_HEADER "${CMAKE_CURRENT_BINARY_DIR}/fht_x86_optimized.h")
+        set(FHT_X86_HOF "${CMAKE_CURRENT_BINARY_DIR}/hall_of_fame_x86.txt")
+
+        add_custom_command(
+            OUTPUT ${FHT_X86_OPT_HEADER}
+            COMMAND ${CMAKE_COMMAND} -E env
+                "BENCHMARK_INCLUDE=$<TARGET_PROPERTY:benchmark,INTERFACE_INCLUDE_DIRECTORIES>"
+                "BENCHMARK_LIB=$<TARGET_FILE_DIR:benchmark>"
+                ${Python3_EXECUTABLE}
+                ${CMAKE_CURRENT_SOURCE_DIR}/scripts/gen_x86.py
+                --output ${FHT_X86_OPT_HEADER}
+                --hall-of-fame ${FHT_X86_HOF}
+                --measurements-dir ${CMAKE_CURRENT_SOURCE_DIR}/scripts/measurements
+            DEPENDS
+                ${CMAKE_CURRENT_SOURCE_DIR}/scripts/gen_x86.py
+                ${CMAKE_CURRENT_SOURCE_DIR}/scripts/measurements/Makefile
+                ${CMAKE_CURRENT_SOURCE_DIR}/scripts/measurements/run_float.cpp
+                ${CMAKE_CURRENT_SOURCE_DIR}/scripts/measurements/run_double.cpp
+                benchmark
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/scripts
+            COMMENT "Optimizing FHT x86 kernels for this host (this may take a while)..."
+            VERBATIM
+        )
+
+        add_custom_target(fht_optimize_x86 DEPENDS ${FHT_X86_OPT_HEADER})
+
+        # Note: Unlike ARM, x86 optimization is NOT automatic (ALL target)
+        # Run manually with: cmake --build . --target fht_optimize_x86
+        message(STATUS "FHT: x86 optimization available. Run 'cmake --build . --target fht_optimize_x86' to generate optimized code.")
+    endif()
+
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(i386|i686)$")
     message(STATUS "FHT: x86 (32-bit) platform detected, using SSE implementation")
     target_compile_definitions(fht INTERFACE FHT_PLATFORM_X86=1)
