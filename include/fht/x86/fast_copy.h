@@ -30,7 +30,7 @@ extern "C" {
 
 #if _FEATURE_AVX512F
 static inline void *fht_fast_copy(void *out, void *in, size_t n) {
-    if (n >= FHT_FAST_COPY_MEMCPY_THRESHOLD) {
+    if (n < 64 || n >= FHT_FAST_COPY_MEMCPY_THRESHOLD) {
         return memcpy(out, in, n);
     }
     n >>= 6;
@@ -41,7 +41,7 @@ static inline void *fht_fast_copy(void *out, void *in, size_t n) {
 }
 #elif __AVX2__
 static inline void *fht_fast_copy(void *out, void *in, size_t n) {
-    if (n >= FHT_FAST_COPY_MEMCPY_THRESHOLD) {
+    if (n < 32 || n >= FHT_FAST_COPY_MEMCPY_THRESHOLD) {
         return memcpy(out, in, n);
     }
     n >>= 5;
@@ -52,7 +52,7 @@ static inline void *fht_fast_copy(void *out, void *in, size_t n) {
 }
 #elif __SSE2__
 static inline void *fht_fast_copy(void *out, void *in, size_t n) {
-    if (n >= FHT_FAST_COPY_MEMCPY_THRESHOLD) {
+    if (n < 16 || n >= FHT_FAST_COPY_MEMCPY_THRESHOLD) {
         return memcpy(out, in, n);
     }
     n >>= 4;
