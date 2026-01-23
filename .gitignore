@@ -1,1 +1,5 @@
 build/
+scripts/measurements/output.csv
+scripts/measurements/run_double
+scripts/measurements/run_float
+scripts/measurements/to_run.h
