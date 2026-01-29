@@ -28,16 +28,11 @@
 #define FHT_H
 #include "fht_config.h"
 
-/*
- * =============================================================================
- * CUDA Compiler Stub Implementation
- * =============================================================================
- *
- * NVCC cannot parse ARM NEON intrinsic headers. When compiling with NVCC,
- * we provide no-op stubs. The real FHT calls should only happen in host code
- * compiled by the regular C/C++ compiler.
- */
 #if defined(__CUDACC__) && defined(FHT_PLATFORM_ARM)
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 __attribute__((unused))
 int fht_float(float *buf, int log_n) {
@@ -64,14 +59,18 @@ int fht_double_oop(double *in, double *out, int log_n) {
 }
 
 #ifdef __cplusplus
+}
+#endif
+
+#ifdef __cplusplus
 __attribute__((unused))
-int fht(float *buf, int log_n) { return 0; }
+inline int fht(float *buf, int log_n) { return 0; }
 __attribute__((unused))
-int fht(double *buf, int log_n) { return 0; }
+inline int fht(double *buf, int log_n) { return 0; }
 __attribute__((unused))
-int fht(float *in, float *out, int log_n) { return 0; }
+inline int fht(float *in, float *out, int log_n) { return 0; }
 __attribute__((unused))
-int fht(double *in, double *out, int log_n) { return 0; }
+inline int fht(double *in, double *out, int log_n) { return 0; }
 #endif
 
 #else /* Real implementations */
