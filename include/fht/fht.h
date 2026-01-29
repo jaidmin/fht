@@ -24,11 +24,46 @@
  *
  * Returns 0 on success, non-zero on error (invalid log_n).
  */
-
 #ifndef FHT_H
 #define FHT_H
-
 #include "fht_config.h"
+
+/*
+ * =============================================================================
+ * CUDA Compiler Stub Implementation
+ * =============================================================================
+ *
+ * NVCC cannot parse ARM NEON intrinsic headers. When compiling with NVCC,
+ * we provide no-op stubs. The real FHT calls should only happen in host code
+ * compiled by the regular C/C++ compiler.
+ */
+#if defined(__CUDACC__) && defined(FHT_PLATFORM_ARM)
+
+static inline int fht_float(float *buf, int log_n) {
+    (void)buf; (void)log_n;
+    return 0;
+}
+static inline int fht_double(double *buf, int log_n) {
+    (void)buf; (void)log_n;
+    return 0;
+}
+static inline int fht_float_oop(float *in, float *out, int log_n) {
+    (void)in; (void)out; (void)log_n;
+    return 0;
+}
+static inline int fht_double_oop(double *in, double *out, int log_n) {
+    (void)in; (void)out; (void)log_n;
+    return 0;
+}
+
+#ifdef __cplusplus
+static inline int fht(float *buf, int log_n) { return fht_float(buf, log_n); }
+static inline int fht(double *buf, int log_n) { return fht_double(buf, log_n); }
+static inline int fht(float *in, float *out, int log_n) { return fht_float_oop(in, out, log_n); }
+static inline int fht(double *in, double *out, int log_n) { return fht_double_oop(in, out, log_n); }
+#endif
+
+#else /* Real implementations */
 
 /*
  * =============================================================================
@@ -39,26 +74,20 @@
  * All platforms provide the same API: fht_float, fht_double, fht_float_oop,
  * fht_double_oop functions.
  */
-
 #if defined(FHT_PLATFORM_ARM)
-
 /* ARM NEON Implementation */
 #if defined(FHT_USE_OPTIMIZED_HEADER) && defined(FHT_OPTIMIZED_HEADER_PATH)
 #include FHT_OPTIMIZED_HEADER_PATH
 #else
 #include "neon/fht_neon.h"
 #endif
-
 #include <string.h>
-
 static inline int fht_float(float *buf, int log_n) {
     return fht_neon_v7_float(buf, log_n);
 }
-
 static inline int fht_double(double *buf, int log_n) {
     return fht_neon_v7_double(buf, log_n);
 }
-
 static inline int fht_float_oop(float *in, float *out, int log_n) {
     if (log_n < 0 || log_n > 30) return 1;
     if (log_n == 0) {
@@ -68,7 +97,6 @@ static inline int fht_float_oop(float *in, float *out, int log_n) {
     memcpy(out, in, sizeof(float) * (1UL << log_n));
     return fht_neon_v7_float(out, log_n);
 }
-
 static inline int fht_double_oop(double *in, double *out, int log_n) {
     if (log_n < 0 || log_n > 30) return 1;
     if (log_n == 0) {
@@ -78,35 +106,28 @@ static inline int fht_double_oop(double *in, double *out, int log_n) {
     memcpy(out, in, sizeof(double) * (1UL << log_n));
     return fht_neon_v7_double(out, log_n);
 }
-
 /* C++ overloads for ARM */
 #ifdef __cplusplus
 static inline int fht(float *buf, int log_n) {
     return fht_float(buf, log_n);
 }
-
 static inline int fht(double *buf, int log_n) {
     return fht_double(buf, log_n);
 }
-
 static inline int fht(float *in, float *out, int log_n) {
     return fht_float_oop(in, out, log_n);
 }
-
 static inline int fht(double *in, double *out, int log_n) {
     return fht_double_oop(in, out, log_n);
 }
 #endif /* __cplusplus */
-
 #elif defined(FHT_PLATFORM_X86)
-
 /* x86 SSE/AVX Implementation (from FFHT) - includes C++ overloads */
 #include "x86/fht_x86.h"
-
 #else
-
 #error "FHT: No implementation available for this platform"
-
 #endif /* Platform selection */
+
+#endif /* __CUDACC__ && FHT_PLATFORM_ARM */
 
 #endif /* FHT_H */
