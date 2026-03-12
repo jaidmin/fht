@@ -24,7 +24,7 @@ for whl in *.whl; do
         echo "=== BEFORE repair: otool -L $so ==="
         otool -L "$so"
         echo "=== BEFORE repair: LC_RPATH entries ==="
-        otool -l "$so" | grep -A2 LC_RPATH || echo "(none)"
+        { otool -l "$so" | grep -A2 LC_RPATH || echo "(none)"; }
         echo
 
         # Remove any stale build-time rpaths (absolute paths from the build machine)
@@ -34,7 +34,7 @@ for whl in *.whl; do
                 *)  echo "Removing stale rpath: $rp from $so"
                     install_name_tool -delete_rpath "$rp" "$so" 2>/dev/null || true ;;
             esac
-        done
+        done || true
 
         old=$(otool -L "$so" | grep -o '[^ ]*libomp[^ ]*' | head -1 || true)
         if [ -n "$old" ]; then
@@ -53,7 +53,7 @@ for whl in *.whl; do
         echo "=== AFTER repair: otool -L $so ==="
         otool -L "$so"
         echo "=== AFTER repair: LC_RPATH entries ==="
-        otool -l "$so" | grep -A2 LC_RPATH || echo "(none)"
+        { otool -l "$so" | grep -A2 LC_RPATH || echo "(none)"; }
     done
 
     rm "$whl"
