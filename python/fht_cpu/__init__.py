@@ -1,4 +1,44 @@
-"""Fast Hadamard Transform with SIMD acceleration."""
+"""Fast Hadamard Transform with SIMD acceleration.
+
+On macOS, we pre-load a single libomp.dylib before importing the C extension
+to prevent "libomp already initialized" crashes when numpy (or other packages)
+also link to OpenMP.
+"""
+
+import os as _os
+import sys as _sys
+
+if _sys.platform == "darwin":
+    import ctypes as _ctypes
+
+    _LIBOMP_SEARCH = [
+        # conda / pixi / mamba environment
+        _os.path.join(_sys.prefix, "lib", "libomp.dylib"),
+        # Homebrew Apple Silicon
+        "/opt/homebrew/opt/libomp/lib/libomp.dylib",
+        # Homebrew Intel
+        "/usr/local/opt/libomp/lib/libomp.dylib",
+    ]
+
+    _loaded = False
+    for _p in _LIBOMP_SEARCH:
+        if _os.path.isfile(_p):
+            try:
+                _ctypes.CDLL(_p)
+                _loaded = True
+                break
+            except OSError:
+                continue
+
+    if not _loaded:
+        import warnings as _w
+        _w.warn(
+            "fht_cpu: could not locate libomp.dylib. "
+            "If using conda/pixi: conda install llvm-openmp  "
+            "If using pip: brew install libomp",
+            RuntimeWarning,
+            stacklevel=2,
+        )
 
 import warnings
 import numpy as np
