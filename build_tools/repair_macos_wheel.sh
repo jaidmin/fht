@@ -36,7 +36,7 @@ for whl in *.whl; do
             esac
         done || true
 
-        old=$(otool -L "$so" | grep -o '[^ ]*libomp[^ ]*' | head -1 || true)
+        old=$(otool -L "$so" | awk '/libomp/{print $1}' | head -1 || true)
         if [ -n "$old" ]; then
             echo "Rewriting $old -> @rpath/libomp.dylib in $so"
             install_name_tool -change "$old" "@rpath/libomp.dylib" "$so"
