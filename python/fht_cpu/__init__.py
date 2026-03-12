@@ -61,6 +61,7 @@ def fht(
     axis: int = -1,
     inplace: bool = True,
     out: np.ndarray | None = None,
+    num_threads: int = -1,
 ) -> np.ndarray:
     """Fast Hadamard Transform.
 
@@ -80,6 +81,12 @@ def fht(
         Preallocated output array. Must have the same shape and dtype as x.
         When provided, x is copied into out and the transform is applied
         to out. The original x is not modified.
+    num_threads : int
+        Number of OpenMP threads for 2D arrays.
+        -1 (default): use all available cores.
+        0 or 1: single-threaded (no OpenMP).
+        N > 1: use exactly N threads.
+        Ignored for 1D arrays.
 
     Returns
     -------
@@ -114,12 +121,12 @@ def fht(
         x = x.copy()
 
     if is_complex:
-        return _fht_complex(x, axis)
+        return _fht_complex(x, axis, num_threads)
     else:
-        return _fht_real(x, axis)
+        return _fht_real(x, axis, num_threads)
 
 
-def _fht_real(x: np.ndarray, axis: int) -> np.ndarray:
+def _fht_real(x: np.ndarray, axis: int, num_threads: int) -> np.ndarray:
     if x.ndim == 1:
         x = _ensure_contiguous_1d(x)
         if x.dtype == np.float32:
@@ -127,11 +134,11 @@ def _fht_real(x: np.ndarray, axis: int) -> np.ndarray:
         else:
             fht_1d_f64(x)
     else:
-        _fht_2d(x, axis)
+        _fht_2d(x, axis, num_threads)
     return x
 
 
-def _fht_complex(x: np.ndarray, axis: int) -> np.ndarray:
+def _fht_complex(x: np.ndarray, axis: int, num_threads: int) -> np.ndarray:
     """Handle complex via C++ deinterleave→transform→reinterleave (with OpenMP)."""
     real_dtype = np.float32 if x.dtype == np.complex64 else np.float64
 
@@ -154,17 +161,17 @@ def _fht_complex(x: np.ndarray, axis: int) -> np.ndarray:
                     stacklevel=3,
                 )
                 tmp = np.ascontiguousarray(x)
-                _fht_complex_2d_rows(tmp, real_dtype)
+                _fht_complex_2d_rows(tmp, real_dtype, num_threads)
                 x[...] = tmp
             else:
-                _fht_complex_2d_rows(x, real_dtype)
+                _fht_complex_2d_rows(x, real_dtype, num_threads)
         else:
             # transform along axis=0 — transpose to make columns into rows,
             # transform, transpose back
             if x.flags["F_CONTIGUOUS"]:
                 # columns are contiguous, view as transposed C-contiguous
                 xt = np.ascontiguousarray(x.T)
-                _fht_complex_2d_rows(xt, real_dtype)
+                _fht_complex_2d_rows(xt, real_dtype, num_threads)
                 x[...] = xt.T
             else:
                 warnings.warn(
@@ -173,24 +180,24 @@ def _fht_complex(x: np.ndarray, axis: int) -> np.ndarray:
                     stacklevel=3,
                 )
                 xt = np.ascontiguousarray(x.T)
-                _fht_complex_2d_rows(xt, real_dtype)
+                _fht_complex_2d_rows(xt, real_dtype, num_threads)
                 x[...] = xt.T
     return x
 
 
-def _fht_complex_2d_rows(x: np.ndarray, real_dtype: np.dtype) -> None:
+def _fht_complex_2d_rows(x: np.ndarray, real_dtype: np.dtype, num_threads: int) -> None:
     """In-place complex FHT along rows of a C-contiguous 2D complex array."""
     nrows, ncols = x.shape
     flat = x.view(real_dtype).reshape(nrows, ncols * 2)
     scratch_re = np.empty((nrows, ncols), dtype=real_dtype)
     scratch_im = np.empty((nrows, ncols), dtype=real_dtype)
     if real_dtype == np.float32:
-        fht_complex_2d_f32_rows(flat, scratch_re, scratch_im)
+        fht_complex_2d_f32_rows(flat, scratch_re, scratch_im, num_threads)
     else:
-        fht_complex_2d_f64_rows(flat, scratch_re, scratch_im)
+        fht_complex_2d_f64_rows(flat, scratch_re, scratch_im, num_threads)
 
 
-def _fht_2d(x: np.ndarray, axis: int) -> np.ndarray:
+def _fht_2d(x: np.ndarray, axis: int, num_threads: int) -> np.ndarray:
     """In-place FHT along `axis` of a 2D real array."""
     axis = axis % 2  # normalize -1 -> 1, etc.
 
@@ -198,9 +205,9 @@ def _fht_2d(x: np.ndarray, axis: int) -> np.ndarray:
         # Transform along columns (axis=1) → need rows to be contiguous
         if x.flags["C_CONTIGUOUS"]:
             if x.dtype == np.float32:
-                fht_2d_f32_rows(x)
+                fht_2d_f32_rows(x, num_threads)
             else:
-                fht_2d_f64_rows(x)
+                fht_2d_f64_rows(x, num_threads)
         else:
             warnings.warn(
                 "Array is not C-contiguous but transform axis=1 requires "
@@ -209,17 +216,17 @@ def _fht_2d(x: np.ndarray, axis: int) -> np.ndarray:
             )
             tmp = np.ascontiguousarray(x)
             if tmp.dtype == np.float32:
-                fht_2d_f32_rows(tmp)
+                fht_2d_f32_rows(tmp, num_threads)
             else:
-                fht_2d_f64_rows(tmp)
+                fht_2d_f64_rows(tmp, num_threads)
             x[...] = tmp
     else:
         # Transform along rows (axis=0) → need columns to be contiguous
         if x.flags["F_CONTIGUOUS"]:
             if x.dtype == np.float32:
-                fht_2d_f32_cols(x)
+                fht_2d_f32_cols(x, num_threads)
             else:
-                fht_2d_f64_cols(x)
+                fht_2d_f64_cols(x, num_threads)
         else:
             warnings.warn(
                 "Array is not F-contiguous but transform axis=0 requires "
@@ -228,9 +235,9 @@ def _fht_2d(x: np.ndarray, axis: int) -> np.ndarray:
             )
             tmp = np.asfortranarray(x)
             if tmp.dtype == np.float32:
-                fht_2d_f32_cols(tmp)
+                fht_2d_f32_cols(tmp, num_threads)
             else:
-                fht_2d_f64_cols(tmp)
+                fht_2d_f64_cols(tmp, num_threads)
             x[...] = tmp
     return x
 
