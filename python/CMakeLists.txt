@@ -29,4 +29,4 @@ if(OpenMP_CXX_FOUND)
     target_link_libraries(_core PRIVATE OpenMP::OpenMP_CXX)
 endif()
 
-install(TARGETS _core LIBRARY DESTINATION fht)
+install(TARGETS _core LIBRARY DESTINATION fht_cpu)

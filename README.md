@@ -5,13 +5,13 @@ High-performance Fast Hadamard Transform library with SIMD-optimized implementat
 ## Install
 
 ```bash
-pip install fht
+pip install fht_cpu
 ```
 
 From source:
 
 ```bash
-git clone https://github.com/yourorg/fht.git
+git clone https://github.com/grigori-hpnalgs-lab/fht_cpu.git
 cd fht
 pip install .
 ```
@@ -72,7 +72,7 @@ Returns 0 on success, 1 on invalid `log_n` (valid range: 0-30).
 
 ```cmake
 # Via CPM (recommended)
-CPMAddPackage("gh:yourorg/fht@1.0.0")
+CPMAddPackage("gh:grigori-hpnalgs-lab/fht@1.0.0")
 target_link_libraries(myapp PRIVATE fht::fht)
 
 # Or as subdirectory
@@ -82,67 +82,17 @@ target_link_libraries(myapp PRIVATE fht::fht)
 
 Compile with `-mavx` on x86 for best performance.
 
-## Publishing Wheels
-
-Prebuilt wheels for PyPI are built using [cibuildwheel](https://cibuildwheel.pypa.io/):
-
-```bash
-pip install cibuildwheel
-cibuildwheel --output-dir dist/
-```
-
-A GitHub Actions workflow can automate this across platforms:
-
-```yaml
-# .github/workflows/wheels.yml
-name: Build wheels
-on:
-  push:
-    tags: ["v*"]
-jobs:
-  build:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-13, macos-14, windows-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pypa/cibuildwheel@v2.21
-      - uses: actions/upload-artifact@v4
-        with:
-          path: wheelhouse/*.whl
-  publish:
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-    steps:
-      - uses: actions/download-artifact@v4
-      - uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          packages-dir: artifact/
-```
 
 ## Platform Support
 
-| Platform | Float | Double | Notes |
-|----------|-------|--------|-------|
-| x86_64 + AVX | yes | yes | Best with `-mavx` |
-| x86_64 + SSE | yes | yes | Fallback |
-| ARM64 (NEON) | yes | yes | Pre-optimized for Apple M-series |
+| Platform | Float | Double |
+|----------|-------|--------|
+| x86_64 + AVX | yes | yes | 
+| x86_64 + SSE | yes | yes |
+| ARM64 (NEON) | yes | yes |
 
-ARM double precision is ~1.6-2x slower than float (2 doubles vs 4 floats per 128-bit register).
 
-## Re-optimizing for Your Hardware
-
-The NEON kernels are pre-optimized for Apple M1. To tune for your specific ARM chip:
-
-```bash
-cd scripts
-python optimize_v7_grid.py --quick --output ../include/fht/neon/fht_neon.h
-```
-
-Or via CMake:
+## Re-optimizing the code for your CPU
 
 ```bash
 cmake -B build -DFHT_OPTIMIZE_FOR_HOST=ON
@@ -151,11 +101,10 @@ cmake --build build
 
 ## Limitations
 
-Known issues we plan to address:
+Known issues:
 
-- [ ] **`inplace=False` / `out=` does copy + in-place** — wastes one extra memory pass. A true out-of-place kernel (read from `in`, write to `out`) would avoid this.
-- [ ] **Complex number support is slow** — currently ~4x slower than real. We deinterleave real/imag into separate buffers, transform each, then reinterleave. Fused complex kernels that handle the deinterleave inside the butterfly would close this gap.
-- [ ] **No GPU support** — CUDA/Metal kernels are not yet available.
+- [ ] **`inplace=False` / `out=` does copy + in-place** — we will add an out of place version soon, it just requires some changes to the codegen files.
+- [ ] **Complex number support is not optimal** — we will provide separate kernels for complex, currently we deinterleave into real and imaginary parts, apply the transform and then recombine. 
 
 ## Acknowledgments
 
@@ -165,4 +114,4 @@ The ARM NEON implementation was written from scratch with auto-tuned code genera
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+See [LICENSE](LICENSE).

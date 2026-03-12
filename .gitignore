@@ -1,3 +1,5 @@
+__pycache__/
+*.pyc
 build/
 scripts/measurements/output.csv
 scripts/measurements/run_double

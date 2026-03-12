@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 import warnings
 
-from fht import fht
+from fht_cpu import fht
 
 
 # ── helpers ──

@@ -9,7 +9,7 @@ Usage:
 import os
 import time
 import numpy as np
-from fht import fht
+from fht_cpu import fht
 
 BUFFER_BYTES = 1 * 1024 * 1024 * 1024  # 1 GB
 WARMUP = 2
