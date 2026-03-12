@@ -37,6 +37,9 @@ fht(x, out=out)
 X = np.random.randn(1000, 2**16).astype(np.float32)
 fht(X, axis=-1)
 
+# Control parallelism: -1 = all cores (default), 0 or 1 = single-threaded, N = exact thread count
+fht(X, axis=-1, num_threads=4)
+
 # Complex arrays (decomposes into real/imag, transforms separately)
 z = np.random.randn(512).astype(np.complex128)
 fht(z)
@@ -44,7 +47,7 @@ fht(z)
 
 Supported dtypes: `float32`, `float64`, `complex64`, `complex128`.
 
-The transform axis must have a power-of-2 length. For 2D arrays, rows (or columns) are processed in parallel with OpenMP — set thread count via `OMP_NUM_THREADS=N`.
+The transform axis must have a power-of-2 length. For 2D arrays, rows (or columns) are processed in parallel with OpenMP. Thread count is set with the `num_threads` parameter.
 
 ## C/C++ Usage
 
