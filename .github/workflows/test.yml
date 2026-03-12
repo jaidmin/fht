@@ -20,25 +20,20 @@ jobs:
     name: test (${{ matrix.arch }})
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: prefix-dev/setup-pixi@v0.8.8
         with:
-          python-version: "3.13"
+          pixi-version: v0.44.0
 
-      - name: Install OpenMP (Linux)
-        run: sudo apt-get install -y libomp-dev
-
-      - name: Build and install
-        run: pip install ".[test]" -v
-        env:
-          CMAKE_ARGS: "-DCMAKE_C_FLAGS=-fopenmp -DCMAKE_CXX_FLAGS=-fopenmp"
+      - name: Build
+        run: pixi run build
 
       - name: Run Python tests
-        run: pytest python/tests/ -v
+        run: pixi run test
 
       - name: Build and run C++ tests
         run: |
-          cmake -B build -DFHT_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release
-          cmake --build build -j
-          ctest --test-dir build --output-on-failure
+          pixi run cmake -B build -DFHT_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Release
+          pixi run cmake --build build -j
+          pixi run ctest --test-dir build --output-on-failure
