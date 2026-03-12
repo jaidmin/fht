@@ -43,23 +43,5 @@ test-command = "pytest {project}/python/tests/ -v"
 [tool.cibuildwheel.macos]
 before-build = "brew install libomp"
 environment = { MACOSX_DEPLOYMENT_TARGET = "14.0" }
-# 1. delocate but do NOT bundle libomp (would cause duplicate-init crashes)
-# 2. Rewrite the hardcoded Homebrew path to @rpath/libomp.dylib so the
-#    extension picks up whichever libomp the runtime provides (conda, brew)
-# 3. __init__.py pre-loads the correct libomp via ctypes before _core imports
-repair-wheel-command = """\
-delocate-wheel --require-archs {delocate_archs} -w {dest_dir} -v --exclude libomp.dylib {wheel} \
-&& cd {dest_dir} \
-&& for whl in *.whl; do \
-    unzip -o -d _tmpwhl "$whl" \
-    && for so in $(find _tmpwhl -name '*.so'); do \
-        old=$(otool -L "$so" | grep -o '[^ ]*libomp[^ ]*' | head -1); \
-        if [ -n "$old" ]; then \
-            install_name_tool -change "$old" "@rpath/libomp.dylib" "$so"; \
-        fi; \
-    done \
-    && rm "$whl" \
-    && (cd _tmpwhl && zip -r "../$whl" .) \
-    && rm -rf _tmpwhl; \
-done\
-"""
+repair-wheel-command = "bash {project}/build_tools/repair_macos_wheel.sh {wheel} {dest_dir} {delocate_archs}"
+
